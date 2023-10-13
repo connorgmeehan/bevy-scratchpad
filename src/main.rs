@@ -15,6 +15,28 @@ fn main() {
         .run();
 }
 
+// Unique entity ID that persists serialisation/deserialisation. 
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)] // this tells the reflect derive to also reflect component behaviors
+struct AppId(Uuid);
+
+#[derive(Resource, Default)]
+enum SceneStoreResource {
+    #[default]
+    Empty,
+    ReadyToSave {
+        target_appid: AppId,
+    },
+    Stored {
+        /// Parent of the stored scene object
+        parent_appid: AppId,
+        // App Id of the stored scene object
+        target_appid: AppId,
+        // The dynamic scene to add/remove from scene
+        scene: DynamicScene,
+    },
+}
+
 const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
     hovered: Some(HighlightKind::new_dynamic(|matl| StandardMaterial {
         base_color: matl.base_color + vec4(-0.2, -0.2, 0.4, 0.0),
@@ -29,33 +51,6 @@ const HIGHLIGHT_TINT: Highlight<StandardMaterial> = Highlight {
         ..matl.to_owned()
     })),
 };
-// Registered components must implement the `Reflect` and `FromWorld` traits.
-// The `Reflect` trait enables serialization, deserialization, and dynamic property access.
-// `Reflect` enable a bunch of cool behaviors, so its worth checking out the dedicated `reflect.rs`
-// example. The `FromWorld` trait determines how your component is constructed when it loads.
-// For simple use cases you can just implement the `Default` trait (which automatically implements
-// `FromWorld`). The simplest registered component just needs these three derives:
-#[derive(Component, Reflect, Default)]
-#[reflect(Component)] // this tells the reflect derive to also reflect component behaviors
-struct AppId(Uuid);
-
-// Resources can be serialized in scenes as well, with the same requirements `Component`s have.
-#[derive(Resource, Default)]
-enum SceneStoreResource {
-    #[default]
-    Empty,
-    ReadyToSave {
-        target_appid: AppId,
-    },
-    Stored {
-        /// Parent of the stored scene object
-        parent_appid: AppId,
-        // App Id of the stored scene object
-        target_appId: AppId,
-        // The dynamic scene to add/remove from scene
-        scene: DynamicScene,
-    },
-}
 
 fn sys_setup_ui(mut commands: Commands) {
     commands
@@ -178,104 +173,13 @@ fn sys_on_to_dynamic_scene(world: &mut World) {
 
     let (mut scene_sture, q_app_id) = sys_state.get_mut(world);
 
-    // let mut builder = DynamicSceneBuilder::from_world(&world);
-    // builder.extract_entity(entity);
-    // let dynamic_scene = builder.build();
+    println!("TODO: Move the picked object into a dynamic scene and store in resource.");
 }
-//
-// fn load_scene_system(mut commands: Commands, asset_server: Res<AssetServer>) {
-//     // "Spawning" a scene bundle creates a new entity and spawns new instances
-//     // of the given scene's entities as children of that entity.
-//     commands.spawn(DynamicSceneBundle {
-//         // Scenes are loaded just like any other asset.
-//         scene: asset_server.load(SCENE_FILE_PATH),
-//         ..default()
-//     });
-// }
-//
-// // This system logs all ComponentA components in our world. Try making a change to a ComponentA in
-// // load_scene_example.scn. You should immediately see the changes appear in the console.
-// fn log_system(
-//     query: Query<(Entity, &Uuid), Changed<Uuid>>,
-//     res: Option<Res<SceneSavedResource>>,
-// ) {
-//     for (entity, component_a) in &query {
-//         info!("  Entity({})", entity.index());
-//         info!(
-//             "    ComponentA: {{ x: {} y: {} }}\n",
-//             component_a.x, component_a.y
-//         );
-//     }
-//     if let Some(res) = res {
-//         if res.is_added() {
-//             info!("  New ResourceA: {{ score: {} }}\n", res.score);
-//         }
-//     }
-// }
-//
-// fn save_scene_system(world: &mut World) {
-//     // Scenes can be created from any ECS World.
-//     // You can either create a new one for the scene or use the current World.
-//     // For demonstration purposes, we'll create a new one.
-//     let mut scene_world = World::new();
-//
-//     // The `TypeRegistry` resource contains information about all registered types (including components).
-//     // This is used to construct scenes, so we'll want to ensure that our previous type registrations
-//     // exist in this new scene world as well.
-//     // To do this, we can simply clone the `AppTypeRegistry` resource.
-//     let type_registry = world.resource::<AppTypeRegistry>().clone();
-//     scene_world.insert_resource(type_registry);
-//
-//     let mut component_b = ComponentB::from_world(world);
-//     component_b.value = "hello".to_string();
-//     scene_world.spawn((
-//         component_b,
-//         Uuid { x: 1.0, y: 2.0 },
-//         Transform::IDENTITY,
-//     ));
-//     scene_world.spawn(Uuid { x: 3.0, y: 4.0 });
-//     scene_world.insert_resource(SceneSavedResource { score: 1 });
-//
-//     // With our sample world ready to go, we can now create our scene:
-//     let scene = DynamicScene::from_world(&scene_world);
-//
-//     // Scenes can be serialized like this:
-//     let type_registry = world.resource::<AppTypeRegistry>();
-//     let serialized_scene = scene.serialize_ron(type_registry).unwrap();
-//
-//     // Showing the scene in the console
-//     info!("{}", serialized_scene);
-//
-//     // Writing the scene to a new file. Using a task to avoid calling the filesystem APIs in a system
-//     // as they are blocking
-//     // This can't work in WASM as there is no filesystem access
-//     #[cfg(not(target_arch = "wasm32"))]
-//     IoTaskPool::get()
-//         .spawn(async move {
-//             // Write the scene RON data to file
-//             File::create(format!("assets/{NEW_SCENE_FILE_PATH}"))
-//                 .and_then(|mut file| file.write(serialized_scene.as_bytes()))
-//                 .expect("Error while writing scene to file");
-//         })
-//         .detach();
-// }
-//
-// // This is only necessary for the info message in the UI. See examples/ui/text.rs for a standalone
-// // text example.
-// fn infotext_system(mut commands: Commands) {
-//     commands.spawn(Camera2dBundle::default());
-//     commands.spawn(
-//         TextBundle::from_section(
-//             "Nothing to see in this window! Check the console output!",
-//             TextStyle {
-//                 font_size: 50.0,
-//                 color: Color::WHITE,
-//                 ..default()
-//             },
-//         )
-//         .with_style(Style {
-//             align_self: AlignSelf::FlexEnd,
-//             ..default()
-//         }),
-//     );
-// }
+fn sys_on_from_dynamic_scene(world: &mut World) {
+    let mut sys_state: SystemState<(ResMut<SceneStoreResource>, Query<(Entity, &AppId)>)> =
+        SystemState::new(world);
+
+    let (mut scene_sture, q_app_id) = sys_state.get_mut(world);
+
+    println!("TODO: Insert the dynamic scene back into the world, as a child of the picked object (or root if no object selected).");
+}
